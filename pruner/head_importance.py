@@ -62,8 +62,8 @@ class HeadImportanceMeasurer:
                     if batch_idx >= 100:
                         break
                     
-                    input_ids = batch["input_ids"].to(self.device)
-                    attention_mask = batch["attention_mask"].to(self.device)
+                    input_ids = torch.tensor(batch["input_ids"]).to(self.device)
+                    attention_mask = torch.tensor(batch["attention_mask"]).to(self.device)
                     prompts = batch["prompts"]
                     
                     self.attention_outputs = {}

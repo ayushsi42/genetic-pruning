@@ -14,7 +14,7 @@ class Config:
     eval_max_samples: int = 50
     eval_seed: int = 42
     
-    use_quantization: bool = True
+    use_quantization: bool = False
     quantization_config: Dict[str, Any] = None
     genetic_algorithm_config: Dict[str, Any] = None
     qlora_config: Dict[str, Any] = None

@@ -49,8 +49,8 @@ class DatasetHandler:
             )
             
             return {
-                "input_ids": tokenized["input_ids"],
-                "attention_mask": tokenized["attention_mask"],
+                "input_ids": tokenized["input_ids"].tolist(),
+                "attention_mask": tokenized["attention_mask"].tolist(),
                 "prompts": prompts
             }
         
@@ -73,8 +73,8 @@ class DatasetHandler:
             )
             
             return {
-                "input_ids": tokenized["input_ids"],
-                "attention_mask": tokenized["attention_mask"],
+                "input_ids": tokenized["input_ids"].tolist(),
+                "attention_mask": tokenized["attention_mask"].tolist(),
                 "prompts": prompts,
                 "labels": labels
             }
