@@ -37,6 +37,11 @@ def main():
     
     print("🤖 Loading Model")
     print("-" * 20)
+    if config.use_quantization:
+        print(f"💾 Quantization enabled: 4-bit loading for memory efficiency")
+    else:
+        print(f"💾 Quantization disabled: Full precision loading")
+    
     model_utils = ModelUtils(config, dataset_handler)
     model_utils.load_model()
     print("✅ Model loaded successfully")

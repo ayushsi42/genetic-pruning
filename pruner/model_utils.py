@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from transformers import AutoModelForCausalLM, AutoTokenizer, GenerationConfig
+from transformers import AutoModelForCausalLM, AutoTokenizer, GenerationConfig, BitsAndBytesConfig
 from peft import LoraConfig, get_peft_model, TaskType
 from typing import List, Dict, Tuple, Any
 import numpy as np
@@ -16,10 +16,26 @@ class ModelUtils:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     def load_model(self):
+        model_kwargs = {
+            "torch_dtype": torch.float16 if torch.cuda.is_available() else torch.float32,
+            "device_map": "auto" if torch.cuda.is_available() else None
+        }
+        
+        if self.config.use_quantization and torch.cuda.is_available():
+            quantization_config = BitsAndBytesConfig(
+                load_in_4bit=self.config.quantization_config["load_in_4bit"],
+                bnb_4bit_use_double_quant=self.config.quantization_config["bnb_4bit_use_double_quant"],
+                bnb_4bit_quant_type=self.config.quantization_config["bnb_4bit_quant_type"],
+                bnb_4bit_compute_dtype=getattr(torch, self.config.quantization_config["bnb_4bit_compute_dtype"])
+            )
+            model_kwargs["quantization_config"] = quantization_config
+            print(f"🔧 Loading model with 4-bit quantization for memory efficiency...")
+        else:
+            print(f"🔧 Loading model without quantization...")
+        
         self.model = AutoModelForCausalLM.from_pretrained(
             self.config.model_name,
-            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-            device_map="auto" if torch.cuda.is_available() else None
+            **model_kwargs
         )
         self.tokenizer = AutoTokenizer.from_pretrained(self.config.model_name)
         

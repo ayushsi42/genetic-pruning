@@ -16,6 +16,7 @@ The pipeline consists of four main phases:
 - 🎯 **Task-specific pruning** based on attention head importance analysis
 - 🧬 **Genetic algorithm optimization** for finding optimal pruning configurations
 - 🔧 **QLoRA integration** for efficient fine-tuning of pruned models
+- 💾 **4-bit quantization** for memory-efficient model loading (reduces memory usage by ~75%)
 - 📊 **Comprehensive evaluation** with accuracy metrics and model compression analysis
 - 🧹 **Robust response cleaning** for safety classification outputs
 - 📈 **Detailed logging and results tracking**
@@ -64,6 +65,15 @@ class Config:
             "sparsity": 0.2,
             "importance_penalty": 0.2
         }
+    }
+    
+    # Quantization settings (for memory efficiency)
+    use_quantization: bool = True
+    quantization_config: Dict[str, Any] = {
+        "load_in_4bit": True,
+        "bnb_4bit_use_double_quant": True,
+        "bnb_4bit_quant_type": "nf4",
+        "bnb_4bit_compute_dtype": "float16"
     }
     
     # QLoRA parameters
@@ -152,9 +162,17 @@ Compression Ratio:    58.3%
 
 ## Hardware Requirements
 
-- **GPU**: Recommended for efficient model inference and training
-- **Memory**: At least 8GB RAM, 16GB+ recommended for larger models
+### With Quantization (Default - Recommended)
+- **GPU**: 6GB+ VRAM (supports models up to 7B parameters)
+- **RAM**: 8GB+ system RAM
 - **Storage**: 2-5GB for model weights and datasets
+
+### Without Quantization (Full Precision)
+- **GPU**: 12GB+ VRAM for medium models, 24GB+ for larger models
+- **RAM**: 16GB+ system RAM, 32GB+ recommended for larger models
+- **Storage**: 2-5GB for model weights and datasets
+
+**Note**: 4-bit quantization reduces memory usage by approximately 75% while maintaining model quality.
 
 ## Customization
 
@@ -164,6 +182,14 @@ Modify the `model_name` in `pruner/config.py` to use different transformer model
 
 ```python
 model_name: str = "your-model-name"
+```
+
+### Disabling Quantization
+
+If you have sufficient memory and want full precision, disable quantization:
+
+```python
+use_quantization: bool = False
 ```
 
 ### Adjusting Genetic Algorithm
