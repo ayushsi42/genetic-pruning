@@ -28,7 +28,7 @@ def main():
     dataset_handler = DatasetHandler(config)
     
     print("Loading datasets...")
-    training_data, eval_data = dataset_handler.load_datasets()
+    training_data, eval_data = dataset_handler.load_datasets(config.model_name)
     train_loader, eval_loader = dataset_handler.get_dataloaders()
     
     print(f"✅ Training samples: {len(training_data)}")

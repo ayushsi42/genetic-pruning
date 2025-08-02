@@ -26,7 +26,8 @@ class ModelUtils:
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
         
-        self.dataset_handler.load_tokenizer(self.config.model_name)
+        if self.dataset_handler.tokenizer is None:
+            self.dataset_handler.load_tokenizer(self.config.model_name)
     
     def apply_pruning_mask(self, pruning_mask: np.ndarray):
         layer_idx = 0

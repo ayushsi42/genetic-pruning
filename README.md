@@ -26,6 +26,11 @@ The pipeline consists of four main phases:
 pip install -r requirements.txt
 ```
 
+**Note**: Make sure you have sufficient disk space and internet connectivity for downloading the model and datasets. The first run will download:
+- Model weights (~500MB - 2GB depending on the model)
+- Training dataset (`ayushsi42/pruning-dataset`)
+- Evaluation dataset (`walledai/XSTest`)
+
 ## Usage
 
 ### Basic Usage

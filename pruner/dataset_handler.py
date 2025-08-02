@@ -17,7 +17,10 @@ class DatasetHandler:
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
     
-    def load_datasets(self) -> Tuple[Dataset, Dataset]:
+    def load_datasets(self, model_name: str = None) -> Tuple[Dataset, Dataset]:
+        if model_name and self.tokenizer is None:
+            self.load_tokenizer(model_name)
+        
         training_dataset = load_dataset(self.config.training_dataset, split="train")
         eval_dataset = load_dataset(self.config.eval_dataset, split="test")
         
@@ -27,6 +30,9 @@ class DatasetHandler:
         return self.training_data, self.eval_data
     
     def _preprocess_training_data(self, dataset: Dataset) -> Dataset:
+        if self.tokenizer is None:
+            raise ValueError("Tokenizer not loaded. Call load_tokenizer() first or pass model_name to load_datasets()")
+        
         def tokenize_prompts(examples):
             prompts = examples["Prompt"]
             
@@ -47,6 +53,9 @@ class DatasetHandler:
         return dataset.map(tokenize_prompts, batched=True, remove_columns=dataset.column_names)
     
     def _preprocess_eval_data(self, dataset: Dataset) -> Dataset:
+        if self.tokenizer is None:
+            raise ValueError("Tokenizer not loaded. Call load_tokenizer() first or pass model_name to load_datasets()")
+        
         def tokenize_eval(examples):
             prompts = examples["prompt"]
             labels = examples["label"]
