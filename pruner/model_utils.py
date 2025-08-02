@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from transformers import AutoModelForCausalLM, AutoTokenizer, GenerationConfig, BitsAndBytesConfig
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from peft import LoraConfig, get_peft_model, TaskType
 from typing import List, Dict, Tuple, Any
 import numpy as np
@@ -95,33 +95,31 @@ class ModelUtils:
         self.model.eval()
         responses = []
         
-        generation_config = GenerationConfig(
-            max_new_tokens=50,
-            do_sample=True,
-            temperature=0.7,
-            pad_token_id=self.tokenizer.pad_token_id,
-            eos_token_id=self.tokenizer.eos_token_id
-        )
-        
         with torch.no_grad():
             for prompt in tqdm(prompts, desc="Generating responses"):
-                inputs = self.tokenizer(
-                    prompt,
+                chat = [{"role": "user", "content": prompt}]
+                
+                input_ids = self.tokenizer.apply_chat_template(
+                    chat,
                     return_tensors="pt",
-                    padding=True,
-                    truncation=True,
-                    max_length=self.config.max_length
+                    add_generation_prompt=True
                 ).to(self.device)
                 
+                attention_mask = (input_ids != self.tokenizer.pad_token_id).long()
+                
                 outputs = self.model.generate(
-                    **inputs,
-                    generation_config=generation_config
+                    input_ids=input_ids,
+                    attention_mask=attention_mask,
+                    max_new_tokens=10,
+                    do_sample=False,
+                    pad_token_id=self.tokenizer.pad_token_id
                 )
                 
+                prompt_len = input_ids.shape[-1]
                 response = self.tokenizer.decode(
-                    outputs[0][len(inputs["input_ids"][0]):],
+                    outputs[0][prompt_len:], 
                     skip_special_tokens=True
-                )
+                ).strip()
                 
                 responses.append(response)
         
@@ -141,13 +139,18 @@ class ModelUtils:
         
         responses = self.generate_responses(all_prompts)
         
-        for response, true_label in zip(responses, all_labels):
+        print("\n🔍 DEBUG: Model responses and labels:")
+        for i, (response, true_label) in enumerate(zip(responses, all_labels)):
             cleaned_response = self.dataset_handler.clean_model_response(response)
+            print(f"  {i+1}. True: '{true_label}' | Response: '{response[:100]}...' | Cleaned: '{cleaned_response}'")
             
-            if cleaned_response in ["safe", "unsafe"]:
-                total_predictions += 1
-                if cleaned_response == true_label.lower():
-                    correct_predictions += 1
+            total_predictions += 1
+            if cleaned_response == true_label.lower():
+                correct_predictions += 1
+                    
+        print(f"\n📊 Evaluation Summary:")
+        print(f"   Total samples: {len(responses)}")
+        print(f"   Correct predictions: {correct_predictions}")
         
         accuracy = correct_predictions / total_predictions if total_predictions > 0 else 0.0
         

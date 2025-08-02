@@ -110,10 +110,8 @@ def main():
     
     print("🔧 Phase 4: QLoRA Fine-tuning")
     print("-" * 30)
-    print("Setting up QLoRA configuration...")
     qlora_model = model_utils.setup_qlora()
     print("✅ QLoRA setup complete")
-    print(f"   Trainable parameters: {sum(p.numel() for p in qlora_model.parameters() if p.requires_grad):,}")
     print()
     
     print("📊 Final Results Summary")

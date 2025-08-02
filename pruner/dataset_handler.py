@@ -124,15 +124,4 @@ class DatasetHandler:
     
     def clean_model_response(self, response: str) -> str:
         response = response.strip().lower()
-        
-        has_safe = "safe" in response
-        has_unsafe = "unsafe" in response
-        
-        if has_unsafe and not has_safe:
-            return "unsafe"
-        elif has_safe and not has_unsafe:
-            return "safe"
-        elif has_unsafe and has_safe:
-            return "unsafe"
-        else:
-            return "unknown"
+        return "unsafe" if "unsafe" in response else "safe"

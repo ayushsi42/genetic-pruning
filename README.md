@@ -9,16 +9,16 @@ The pipeline consists of four main phases:
 1. **Dataset Setup**: Load and preprocess training and evaluation datasets
 2. **Head Importance Measurement**: Analyze attention head activations to determine their importance for the target task
 3. **Genetic Algorithm Optimization**: Evolve optimal pruning configurations that balance accuracy, sparsity, and importance preservation
-4. **QLoRA Fine-tuning**: Apply efficient fine-tuning to the pruned model
+4. **QLoRA Fine-tuning**: Apply efficient fine-tuning to the pruned model (minimal logging)
 
 ## Features
 
 - 🎯 **Task-specific pruning** based on attention head importance analysis
-- 🧬 **Genetic algorithm optimization** for finding optimal pruning configurations
-- 🔧 **QLoRA integration** for efficient fine-tuning of pruned models
+- 🧬 **Genetic algorithm optimization** for finding optimal pruning configurations  
+- 🔧 **QLoRA integration** for efficient fine-tuning of pruned models (minimal logging)
 - 💾 **4-bit quantization** for memory-efficient model loading (reduces memory usage by ~75%)
 - 📊 **Comprehensive evaluation** with accuracy metrics and model compression analysis
-- 🧹 **Robust response cleaning** for safety classification outputs
+- 🧹 **Improved response normalization** for safety classification outputs (defaults to "safe" if unclear)
 - 📈 **Detailed logging and results tracking**
 
 ## Installation
