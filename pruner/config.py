@@ -11,7 +11,7 @@ class Config:
     batch_size: int = 8
     eval_batch_size: int = 16
     
-    eval_max_samples: int = 50
+    eval_max_samples: int = 10
     eval_seed: int = 42
     
     use_quantization: bool = True

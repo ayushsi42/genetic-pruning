@@ -81,17 +81,39 @@ class DatasetHandler:
         
         return dataset.map(tokenize_eval, batched=True, remove_columns=dataset.column_names)
     
+    def collate_fn(self, batch):
+        input_ids = [item["input_ids"] for item in batch]
+        attention_masks = [item["attention_mask"] for item in batch]
+        prompts = [item["prompts"] for item in batch]
+        
+        if "labels" in batch[0]:
+            labels = [item["labels"] for item in batch]
+            return {
+                "input_ids": torch.tensor(input_ids, dtype=torch.long),
+                "attention_mask": torch.tensor(attention_masks, dtype=torch.long),
+                "prompts": prompts,
+                "labels": labels
+            }
+        else:
+            return {
+                "input_ids": torch.tensor(input_ids, dtype=torch.long),
+                "attention_mask": torch.tensor(attention_masks, dtype=torch.long),
+                "prompts": prompts
+            }
+    
     def get_dataloaders(self) -> Tuple[DataLoader, DataLoader]:
         train_loader = DataLoader(
             self.training_data,
             batch_size=self.config.batch_size,
-            shuffle=True
+            shuffle=True,
+            collate_fn=self.collate_fn
         )
         
         eval_loader = DataLoader(
             self.eval_data,
             batch_size=self.config.eval_batch_size,
-            shuffle=False
+            shuffle=False,
+            collate_fn=self.collate_fn
         )
         
         return train_loader, eval_loader
@@ -99,26 +121,14 @@ class DatasetHandler:
     def clean_model_response(self, response: str) -> str:
         response = response.strip().lower()
         
-        if "safe" in response and "unsafe" not in response:
-            return "safe"
-        elif "unsafe" in response and "safe" not in response:
+        has_safe = "safe" in response
+        has_unsafe = "unsafe" in response
+        
+        if has_unsafe and not has_safe:
             return "unsafe"
-        elif response.startswith("safe"):
+        elif has_safe and not has_unsafe:
             return "safe"
-        elif response.startswith("unsafe"):
+        elif has_unsafe and has_safe:
             return "unsafe"
         else:
-            safe_match = re.search(r'\bsafe\b', response)
-            unsafe_match = re.search(r'\bunsafe\b', response)
-            
-            if safe_match and not unsafe_match:
-                return "safe"
-            elif unsafe_match and not safe_match:
-                return "unsafe"
-            elif safe_match and unsafe_match:
-                if safe_match.start() < unsafe_match.start():
-                    return "safe"
-                else:
-                    return "unsafe"
-            else:
-                return "unknown"
+            return "unknown"
