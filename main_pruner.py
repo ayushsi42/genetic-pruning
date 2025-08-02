@@ -33,6 +33,9 @@ def main():
     
     print(f"✅ Training samples: {len(training_data)}")
     print(f"✅ Evaluation samples: {len(eval_data)}")
+    
+    if config.eval_max_samples > 0:
+        print(f"   (Limited to {config.eval_max_samples} random samples for evaluation with seed {config.eval_seed})")
     print()
     
     print("🤖 Loading Model")

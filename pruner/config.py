@@ -11,6 +11,9 @@ class Config:
     batch_size: int = 8
     eval_batch_size: int = 16
     
+    eval_max_samples: int = 50
+    eval_seed: int = 42
+    
     use_quantization: bool = True
     quantization_config: Dict[str, Any] = None
     genetic_algorithm_config: Dict[str, Any] = None

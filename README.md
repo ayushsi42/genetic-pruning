@@ -53,6 +53,11 @@ class Config:
     training_dataset: str = "ayushsi42/pruning-dataset"
     eval_dataset: str = "walledai/XSTest"
     
+    # Evaluation settings
+    eval_batch_size: int = 16
+    eval_max_samples: int = 50  # Limit evaluation to 50 random samples
+    eval_seed: int = 42         # Seed for reproducibility
+    
     # Genetic Algorithm parameters
     genetic_algorithm_config: Dict[str, Any] = {
         "population_size": 50,
