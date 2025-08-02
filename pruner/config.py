@@ -1,0 +1,41 @@
+from dataclasses import dataclass
+from typing import List, Dict, Any
+
+@dataclass
+class Config:
+    model_name: str = "microsoft/DialoGPT-medium"
+    training_dataset: str = "ayushsi42/pruning-dataset"
+    eval_dataset: str = "walledai/XSTest"
+    
+    max_length: int = 512
+    batch_size: int = 8
+    eval_batch_size: int = 16
+    
+    genetic_algorithm_config: Dict[str, Any] = None
+    qlora_config: Dict[str, Any] = None
+    
+    def __post_init__(self):
+        if self.genetic_algorithm_config is None:
+            self.genetic_algorithm_config = {
+                "population_size": 50,
+                "generations": 20,
+                "mutation_rate": 0.1,
+                "crossover_rate": 0.8,
+                "elite_size": 5,
+                "fitness_weights": {
+                    "accuracy": 0.6,
+                    "sparsity": 0.2,
+                    "importance_penalty": 0.2
+                }
+            }
+        
+        if self.qlora_config is None:
+            self.qlora_config = {
+                "r": 16,
+                "lora_alpha": 32,
+                "lora_dropout": 0.1,
+                "target_modules": ["q_proj", "k_proj", "v_proj", "o_proj"],
+                "learning_rate": 2e-4,
+                "num_epochs": 3,
+                "warmup_steps": 100
+            }
