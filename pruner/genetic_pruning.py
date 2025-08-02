@@ -58,9 +58,22 @@ class GeneticPruningOptimizer:
         return mask
     
     def evaluate_fitness(self, individual: Individual) -> Individual:
-        original_state = copy.deepcopy(self.model_utils.model.state_dict())
+        original_weights = {}
         
         try:
+            layer_idx = 0
+            for name, module in self.model_utils.model.named_modules():
+                if hasattr(module, 'self_attn') and hasattr(module.self_attn, 'num_heads'):
+                    if layer_idx < individual.pruning_mask.shape[0]:
+                        attn = module.self_attn
+                        original_weights[f"layer_{layer_idx}"] = {
+                            "q_proj": attn.q_proj.weight.data.clone() if hasattr(attn, 'q_proj') else None,
+                            "k_proj": attn.k_proj.weight.data.clone() if hasattr(attn, 'k_proj') else None,
+                            "v_proj": attn.v_proj.weight.data.clone() if hasattr(attn, 'v_proj') else None,
+                            "o_proj": attn.o_proj.weight.data.clone() if hasattr(attn, 'o_proj') else None,
+                        }
+                        layer_idx += 1
+            
             self.model_utils.apply_pruning_mask(individual.pruning_mask)
             
             eval_results = self.model_utils.evaluate_model(self.eval_dataloader)
@@ -77,8 +90,32 @@ class GeneticPruningOptimizer:
             individual.sparsity = sparsity
             individual.importance_penalty = importance_penalty
             
+        except Exception as e:
+            print(f"Error evaluating individual: {e}")
+            individual.fitness = 0.0
+            individual.accuracy = 0.0
+            individual.sparsity = self.model_utils.calculate_sparsity(individual.pruning_mask)
+            individual.importance_penalty = 1.0
+        
         finally:
-            self.model_utils.model.load_state_dict(original_state)
+            try:
+                layer_idx = 0
+                for name, module in self.model_utils.model.named_modules():
+                    if hasattr(module, 'self_attn') and hasattr(module.self_attn, 'num_heads'):
+                        if f"layer_{layer_idx}" in original_weights:
+                            attn = module.self_attn
+                            weights = original_weights[f"layer_{layer_idx}"]
+                            if weights["q_proj"] is not None and hasattr(attn, 'q_proj'):
+                                attn.q_proj.weight.data = weights["q_proj"]
+                            if weights["k_proj"] is not None and hasattr(attn, 'k_proj'):
+                                attn.k_proj.weight.data = weights["k_proj"]
+                            if weights["v_proj"] is not None and hasattr(attn, 'v_proj'):
+                                attn.v_proj.weight.data = weights["v_proj"]
+                            if weights["o_proj"] is not None and hasattr(attn, 'o_proj'):
+                                attn.o_proj.weight.data = weights["o_proj"]
+                        layer_idx += 1
+            except Exception as e:
+                print(f"Error restoring weights: {e}")
         
         return individual
     

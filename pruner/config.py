@@ -32,11 +32,11 @@ class Config:
         
         if self.genetic_algorithm_config is None:
             self.genetic_algorithm_config = {
-                "population_size": 50,
-                "generations": 20,
+                "population_size": 10,
+                "generations": 5,
                 "mutation_rate": 0.1,
                 "crossover_rate": 0.8,
-                "elite_size": 5,
+                "elite_size": 2,
                 "fitness_weights": {
                     "accuracy": 0.6,
                     "sparsity": 0.2,
