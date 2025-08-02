@@ -13,6 +13,8 @@ class Config:
     
     eval_max_samples: int = 10
     eval_seed: int = 42
+    train_max_samples: int = 10
+    train_seed: int = 123
     
     use_quantization: bool = True
     quantization_config: Dict[str, Any] = None

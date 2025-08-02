@@ -58,8 +58,6 @@ class HeadImportanceMeasurer:
         try:
             with torch.no_grad():
                 for batch_idx, batch in enumerate(tqdm(train_dataloader, desc="Measuring head importance")):
-                    if batch_idx >= 100:
-                        break
                     
                     input_ids = batch["input_ids"].to(self.device)
                     attention_mask = batch["attention_mask"].to(self.device)
