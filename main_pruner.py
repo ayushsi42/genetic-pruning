@@ -15,22 +15,65 @@ from pruner import (
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Guided pruning + QLoRA pipeline")
-    parser.add_argument("--model-name", default="meta-llama/Llama-Guard-3-8B")
-    parser.add_argument("--train-max-samples", type=int, default=10)
-    parser.add_argument("--eval-max-samples", type=int, default=10)
-    parser.add_argument("--use-quantization", action="store_true", default=False)
-    parser.add_argument("--population-size", type=int, default=10)
-    parser.add_argument("--generations", type=int, default=5)
+    
+    # Model configuration
+    parser.add_argument("--model-name", default="meta-llama/Llama-Guard-3-8B", 
+                       help="HuggingFace model name or path")
+    parser.add_argument("--use-quantization", action="store_true", default=False,
+                       help="Enable 4-bit quantization for memory efficiency")
+    
+    # Dataset configuration
+    parser.add_argument("--training-dataset", default="ayushsi42/pruning-dataset",
+                       help="HuggingFace dataset name for training")
+    parser.add_argument("--eval-dataset", default="walledai/XSTest",
+                       help="HuggingFace dataset name for evaluation")
+    parser.add_argument("--train-max-samples", type=int, default=10,
+                       help="Maximum number of training samples to use")
+    parser.add_argument("--eval-max-samples", type=int, default=10,
+                       help="Maximum number of evaluation samples to use")
+    parser.add_argument("--train-seed", type=int, default=123,
+                       help="Random seed for training dataset sampling")
+    parser.add_argument("--eval-seed", type=int, default=42,
+                       help="Random seed for evaluation dataset sampling")
+    
+    # Data processing configuration
+    parser.add_argument("--max-length", type=int, default=512,
+                       help="Maximum sequence length for tokenization")
+    parser.add_argument("--batch-size", type=int, default=8,
+                       help="Training batch size")
+    parser.add_argument("--eval-batch-size", type=int, default=16,
+                       help="Evaluation batch size")
+    
+    # Genetic algorithm configuration
+    parser.add_argument("--population-size", type=int, default=10,
+                       help="Population size for genetic algorithm")
+    parser.add_argument("--generations", type=int, default=5,
+                       help="Number of generations for genetic algorithm")
+    
     return parser.parse_args()
 
 def main():
     args = parse_args()
 
     config = Config()
+    # Model configuration
     config.model_name = args.model_name
+    config.use_quantization = args.use_quantization
+    
+    # Dataset configuration
+    config.training_dataset = args.training_dataset
+    config.eval_dataset = args.eval_dataset
     config.train_max_samples = args.train_max_samples
     config.eval_max_samples = args.eval_max_samples
-    config.use_quantization = args.use_quantization
+    config.train_seed = args.train_seed
+    config.eval_seed = args.eval_seed
+    
+    # Data processing configuration
+    config.max_length = args.max_length
+    config.batch_size = args.batch_size
+    config.eval_batch_size = args.eval_batch_size
+    
+    # Genetic algorithm configuration
     config.genetic_algorithm_config["population_size"] = args.population_size
     config.genetic_algorithm_config["generations"] = args.generations
 
@@ -39,8 +82,24 @@ def main():
     
     print("Configuration loaded:")
     print(f"   Model: {config.model_name}")
+    print(f"   Quantization: {'Enabled' if config.use_quantization else 'Disabled'}")
+    print()
+    print("Dataset Configuration:")
     print(f"   Training Dataset: {config.training_dataset}")
-    print(f"   Eval Dataset: {config.eval_dataset}")
+    print(f"   Evaluation Dataset: {config.eval_dataset}")
+    print(f"   Max Training Samples: {config.train_max_samples}")
+    print(f"   Max Evaluation Samples: {config.eval_max_samples}")
+    print(f"   Training Seed: {config.train_seed}")
+    print(f"   Evaluation Seed: {config.eval_seed}")
+    print()
+    print("Data Processing Configuration:")
+    print(f"   Max Sequence Length: {config.max_length}")
+    print(f"   Training Batch Size: {config.batch_size}")
+    print(f"   Evaluation Batch Size: {config.eval_batch_size}")
+    print()
+    print("Genetic Algorithm Configuration:")
+    print(f"   Population Size: {config.genetic_algorithm_config['population_size']}")
+    print(f"   Generations: {config.genetic_algorithm_config['generations']}")
     print()
     
     print("Phase 1: Dataset Setup")
