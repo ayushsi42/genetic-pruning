@@ -8,13 +8,12 @@ This repository provides:
 ---
 ### Directory Layout
 ```
-pruner/               # training / pruning pipeline (package)
+pruner/               
   main_pruner.py      # entry point
   …
 
-guardrail/            # runtime safety filter (package)
+guardrail/     
   guardrail_system.py # core filtering logic
-  main_guardrail.py   # demo CLI (interactive / batch)
   …
 
 pruned_model_*/       # produced by pruner (weights + pruning_config.json)
