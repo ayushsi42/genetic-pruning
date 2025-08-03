@@ -264,9 +264,16 @@ class HeadImportanceMeasurer:
         max_val = np.max(importance_matrix)
         
         if max_val - min_val > 0:
+            # Normal case: scale to [0, 1] range
             normalized = (importance_matrix - min_val) / (max_val - min_val)
         else:
-            normalized = np.zeros_like(importance_matrix)
+            # Special case: all values are identical
+            if max_val > 0:
+                # If all values are positive and equal, set them to 1.0 (all equally important)
+                normalized = np.ones_like(importance_matrix)
+            else:
+                # If all values are zero, keep them as zero
+                normalized = np.zeros_like(importance_matrix)
         
         return normalized
     
