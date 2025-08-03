@@ -156,8 +156,10 @@ def main():
     importance_stats = importance_measurer.get_importance_stats(importance_matrix)
     print("Head importance analysis complete")
     print(f"   Shape: {importance_matrix.shape}")
-    print(f"   Mean importance: {importance_stats['mean_importance']:.4f}")
-    print(f"   Std importance: {importance_stats['std_importance']:.4f}")
+    print(f"   Mean importance: {importance_stats['mean_importance']:.8f}")
+    print(f"   Std importance: {importance_stats['std_importance']:.8f}")
+    print(f"   Max importance: {importance_stats['max_importance']:.8f}")
+    print(f"   Min importance: {importance_stats['min_importance']:.8f}")
     print()
     
     print("Phase 3: Genetic Algorithm Optimization")

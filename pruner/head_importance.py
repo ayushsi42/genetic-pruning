@@ -219,7 +219,21 @@ class HeadImportanceMeasurer:
         print(f"     Layers with non-zero importance: {layers_with_importance}/{num_layers}")
         print(f"     Maximum layer importance: {max_layer_importance:.6f}")
         
+        # Debug: Check matrix before normalization
+        pre_norm_mean = np.mean(importance_matrix)
+        pre_norm_std = np.std(importance_matrix)
+        pre_norm_max = np.max(importance_matrix)
+        
         importance_matrix = self._normalize_importance_matrix(importance_matrix)
+        
+        # Debug: Check matrix after normalization
+        post_norm_mean = np.mean(importance_matrix)
+        post_norm_std = np.std(importance_matrix)
+        post_norm_max = np.max(importance_matrix)
+        
+        print(f"   Normalization summary:")
+        print(f"     Pre-normalization - Mean: {pre_norm_mean:.8f}, Std: {pre_norm_std:.8f}, Max: {pre_norm_max:.8f}")
+        print(f"     Post-normalization - Mean: {post_norm_mean:.8f}, Std: {post_norm_std:.8f}, Max: {post_norm_max:.8f}")
         
         return importance_matrix
     
