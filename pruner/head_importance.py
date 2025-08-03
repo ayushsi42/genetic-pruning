@@ -29,13 +29,32 @@ class HeadImportanceMeasurer:
     
     def _create_attention_hook(self, layer_idx):
         def hook(module, input, output):
-            if isinstance(output, tuple):
-                attention_weights = output[1] if len(output) > 1 else None
-            else:
-                attention_weights = None
+            # Try different ways to extract attention weights
+            attention_weights = None
             
+            if isinstance(output, tuple):
+                # Try second element (common for transformers)
+                if len(output) > 1 and output[1] is not None:
+                    attention_weights = output[1]
+                # Try first element if second is None
+                elif len(output) > 0 and output[0] is not None:
+                    potential_attn = output[0]
+                    # Check if it has the right shape for attention (batch, heads, seq, seq)
+                    if len(potential_attn.shape) == 4:
+                        attention_weights = potential_attn
+            else:
+                # Single tensor output
+                if hasattr(output, 'shape') and len(output.shape) == 4:
+                    attention_weights = output
+            
+            # Store attention weights if found
             if attention_weights is not None:
-                self.attention_outputs[layer_idx] = attention_weights.detach().cpu()
+                try:
+                    # Ensure it's detached and moved to CPU
+                    self.attention_outputs[layer_idx] = attention_weights.detach().cpu()
+                    print(f"Captured attention for layer {layer_idx}, shape: {attention_weights.shape}")
+                except Exception as e:
+                    print(f"Error capturing attention for layer {layer_idx}: {e}")
         
         return hook
     
@@ -46,70 +65,80 @@ class HeadImportanceMeasurer:
     
     def measure_head_importance(self, train_dataloader: DataLoader, dataset_handler) -> np.ndarray:
         self.model.eval()
-        self.register_attention_hooks()
         
         num_layers = self._get_num_layers()
+        num_heads = self._get_num_heads()
         
         safe_activations = {}
         unsafe_activations = {}
         safe_counts = {}
         unsafe_counts = {}
         
-        try:
-            with torch.no_grad():
-                for batch_idx, batch in enumerate(tqdm(train_dataloader, desc="Measuring head importance")):
-                    
-                    input_ids = batch["input_ids"].to(self.device)
-                    attention_mask = batch["attention_mask"].to(self.device)
-                    prompts = batch["prompts"]
-                    
-                    self.attention_outputs = {}
-                    
-                    outputs = self.model(
-                        input_ids=input_ids,
-                        attention_mask=attention_mask,
-                        output_attentions=True
-                    )
-                    
-                    responses = []
-                    for i, prompt in enumerate(prompts):
-                        try:
-                            prompt_input = self.tokenizer(
-                                prompt,
-                                return_tensors="pt",
-                                padding=True,
-                                truncation=True,
-                                max_length=self.config.max_length
-                            ).to(self.device)
-                            
-                            with torch.no_grad():
-                                gen_output = self.model.generate(
-                                    **prompt_input,
-                                    max_new_tokens=20,
-                                    do_sample=False,
-                                    pad_token_id=self.tokenizer.pad_token_id
-                                )
-                            
-                            response = self.tokenizer.decode(
-                                gen_output[0][len(prompt_input["input_ids"][0]):],
-                                skip_special_tokens=True
-                            )
-                            
-                            cleaned_response = dataset_handler.clean_model_response(response)
-                            responses.append(cleaned_response)
+        print(f"Analyzing {num_layers} layers with {num_heads} heads each for importance...")
+        
+        with torch.no_grad():
+            for batch_idx, batch in enumerate(tqdm(train_dataloader, desc="Measuring head importance")):
+                prompts = batch["prompts"]
+                
+                # Process each prompt individually
+                for prompt in prompts:
+                    try:
+                        # Prepare input for generation
+                        chat = [{"role": "user", "content": prompt}]
+                        input_ids = self.tokenizer.apply_chat_template(
+                            chat,
+                            return_tensors="pt",
+                            add_generation_prompt=True
+                        ).to(self.device)
                         
-                        except Exception as e:
-                            responses.append("unknown")
-                    
-                    for layer_idx in range(num_layers):
-                        if layer_idx in self.attention_outputs:
-                            attention_weights = self.attention_outputs[layer_idx]
+                        attention_mask = (input_ids != self.tokenizer.pad_token_id).long()
+                        
+                        # Force eager attention to get attention weights
+                        # Temporarily set attention implementation
+                        original_config = getattr(self.model.config, '_attn_implementation', None)
+                        self.model.config._attn_implementation = 'eager'
+                        
+                        # Forward pass to get attention weights
+                        outputs = self.model(
+                            input_ids=input_ids,
+                            attention_mask=attention_mask,
+                            output_attentions=True
+                        )
+                        
+                        # Generate response separately
+                        gen_output = self.model.generate(
+                            input_ids=input_ids,
+                            attention_mask=attention_mask,
+                            max_new_tokens=10,
+                            do_sample=False,
+                            pad_token_id=self.tokenizer.pad_token_id
+                        )
+                        
+                        # Restore original config
+                        if original_config is not None:
+                            self.model.config._attn_implementation = original_config
+                        
+                        # Decode response
+                        prompt_len = input_ids.shape[-1]
+                        response = self.tokenizer.decode(
+                            gen_output[0][prompt_len:], 
+                            skip_special_tokens=True
+                        ).strip()
+                        
+                        cleaned_response = dataset_handler.clean_model_response(response)
+                        
+                        # Process attention weights from model output
+                        if hasattr(outputs, 'attentions') and outputs.attentions is not None:
+                            attentions = outputs.attentions
                             
-                            for sample_idx, response in enumerate(responses):
-                                if sample_idx < attention_weights.shape[0]:
-                                    sample_attention = attention_weights[sample_idx]
+                            for layer_idx, layer_attention in enumerate(attentions):
+                                if layer_attention is not None:
+                                    # layer_attention shape: (batch_size, num_heads, seq_len, seq_len)
+                                    # Take the first sample from batch
+                                    sample_attention = layer_attention[0]  # (num_heads, seq_len, seq_len)
                                     
-                                    head_importance = self._compute_head_activation_strength(sample_attention)
+                                    # Compute head importance (mean attention across sequence)
+                                    head_importance = torch.mean(sample_attention, dim=(1, 2)).cpu().numpy()
                                     
                                     if layer_idx not in safe_activations:
                                         safe_activations[layer_idx] = np.zeros_like(head_importance)
@@ -117,15 +146,18 @@ class HeadImportanceMeasurer:
                                         safe_counts[layer_idx] = np.zeros_like(head_importance)
                                         unsafe_counts[layer_idx] = np.zeros_like(head_importance)
                                     
-                                    if response == "safe":
+                                    if cleaned_response == "safe":
                                         safe_activations[layer_idx] += head_importance
                                         safe_counts[layer_idx] += 1
-                                    elif response == "unsafe":
+                                    elif cleaned_response == "unsafe":
                                         unsafe_activations[layer_idx] += head_importance
                                         unsafe_counts[layer_idx] += 1
-        
-        finally:
-            self.remove_hooks()
+                        else:
+                            print(f"Warning: No attention weights captured for prompt")
+                        
+                    except Exception as e:
+                        print(f"Error processing prompt: {e}")
+                        continue
         
         max_heads = max(len(safe_activations[layer_idx]) for layer_idx in safe_activations.keys()) if safe_activations else 8
         
