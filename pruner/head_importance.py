@@ -130,15 +130,19 @@ class HeadImportanceMeasurer:
                         # Process attention weights from model output
                         if hasattr(outputs, 'attentions') and outputs.attentions is not None:
                             attentions = outputs.attentions
+                            print(f"Captured {len(attentions)} attention layers for response: '{cleaned_response}'")
                             
                             for layer_idx, layer_attention in enumerate(attentions):
                                 if layer_attention is not None:
+                                    print(f"Layer {layer_idx} attention shape: {layer_attention.shape}")
+                                    
                                     # layer_attention shape: (batch_size, num_heads, seq_len, seq_len)
                                     # Take the first sample from batch
                                     sample_attention = layer_attention[0]  # (num_heads, seq_len, seq_len)
                                     
                                     # Compute head importance (mean attention across sequence)
                                     head_importance = torch.mean(sample_attention, dim=(1, 2)).cpu().numpy()
+                                    print(f"Layer {layer_idx} head importance: {head_importance[:3]}... (showing first 3)")
                                     
                                     if layer_idx not in safe_activations:
                                         safe_activations[layer_idx] = np.zeros_like(head_importance)
@@ -149,17 +153,34 @@ class HeadImportanceMeasurer:
                                     if cleaned_response == "safe":
                                         safe_activations[layer_idx] += head_importance
                                         safe_counts[layer_idx] += 1
+                                        print(f"Added to safe activations for layer {layer_idx}")
                                     elif cleaned_response == "unsafe":
                                         unsafe_activations[layer_idx] += head_importance
                                         unsafe_counts[layer_idx] += 1
+                                        print(f"Added to unsafe activations for layer {layer_idx}")
+                                    else:
+                                        print(f"Unknown response: '{cleaned_response}' - not counting")
                         else:
-                            print(f"Warning: No attention weights captured for prompt")
+                            print(f"Warning: No attention weights captured for prompt. Output type: {type(outputs)}")
+                            if hasattr(outputs, 'attentions'):
+                                print(f"Attentions attribute exists but is: {outputs.attentions}")
+                            else:
+                                print("No attentions attribute found")
                         
                     except Exception as e:
                         print(f"Error processing prompt: {e}")
                         continue
         
-        max_heads = max(len(safe_activations[layer_idx]) for layer_idx in safe_activations.keys()) if safe_activations else 8
+        print(f"\nFinal processing:")
+        print(f"Safe activations collected for {len(safe_activations)} layers")
+        print(f"Unsafe activations collected for {len(unsafe_activations)} layers")
+        
+        # Debug: show some statistics
+        for layer_idx in list(safe_activations.keys())[:3]:  # Show first 3 layers
+            print(f"Layer {layer_idx}: safe_count={np.sum(safe_counts[layer_idx])}, unsafe_count={np.sum(unsafe_counts[layer_idx])}")
+        
+        max_heads = max(len(safe_activations[layer_idx]) for layer_idx in safe_activations.keys()) if safe_activations else 16
+        print(f"Max heads detected: {max_heads}")
         
         importance_matrix = np.zeros((num_layers, max_heads))
         
@@ -179,6 +200,11 @@ class HeadImportanceMeasurer:
                 
                 num_heads_layer = len(layer_importance)
                 importance_matrix[layer_idx, :num_heads_layer] = layer_importance
+                
+                if layer_idx < 3:  # Debug first 3 layers
+                    print(f"Layer {layer_idx} importance: {layer_importance[:3]}...")
+            else:
+                print(f"No activations for layer {layer_idx}")
         
         importance_matrix = self._normalize_importance_matrix(importance_matrix)
         
@@ -228,12 +254,36 @@ class HeadImportanceMeasurer:
     
     def _get_num_heads(self) -> int:
         for name, module in self.model.named_modules():
-            if hasattr(module, 'self_attn') and hasattr(module.self_attn, 'num_heads'):
-                num_heads = module.self_attn.num_heads
-                print(f"Found {num_heads} attention heads in layer: {name}")
+            if hasattr(module, 'self_attn'):
+                attn = module.self_attn
+                # Try different ways to get num_heads
+                if hasattr(attn, 'num_heads'):
+                    num_heads = attn.num_heads
+                    print(f"Found {num_heads} attention heads in layer: {name}")
+                    return num_heads
+                elif hasattr(attn, 'num_attention_heads'):
+                    num_heads = attn.num_attention_heads
+                    print(f"Found {num_heads} attention heads in layer: {name}")
+                    return num_heads
+                elif hasattr(attn, 'config') and hasattr(attn.config, 'num_attention_heads'):
+                    num_heads = attn.config.num_attention_heads
+                    print(f"Found {num_heads} attention heads in config: {name}")
+                    return num_heads
+        
+        # Try to get from model config
+        if hasattr(self.model, 'config'):
+            config = self.model.config
+            if hasattr(config, 'num_attention_heads'):
+                num_heads = config.num_attention_heads
+                print(f"Found {num_heads} attention heads in model config")
                 return num_heads
-        print("Warning: Could not find attention heads, defaulting to 8")
-        return 8
+            elif hasattr(config, 'num_heads'):
+                num_heads = config.num_heads
+                print(f"Found {num_heads} attention heads in model config")
+                return num_heads
+        
+        print("Warning: Could not find attention heads, defaulting to 16")
+        return 16
     
     def get_importance_stats(self, importance_matrix: np.ndarray) -> Dict[str, float]:
         return {
