@@ -26,11 +26,11 @@ class DatasetHandler:
         
         if self.config.train_max_samples and self.config.train_max_samples > 0 and self.config.train_max_samples < len(training_dataset):
             training_dataset = training_dataset.shuffle(seed=self.config.train_seed).select(range(self.config.train_max_samples))
-            print(f"✅ Training dataset limited to {self.config.train_max_samples} random samples with seed {self.config.train_seed}")
+            print(f"Training dataset limited to {self.config.train_max_samples} random samples with seed {self.config.train_seed}")
         
         if self.config.eval_max_samples and self.config.eval_max_samples > 0 and self.config.eval_max_samples < len(eval_dataset):
             eval_dataset = eval_dataset.shuffle(seed=self.config.eval_seed).select(range(self.config.eval_max_samples))
-            print(f"✅ Evaluation dataset limited to {self.config.eval_max_samples} random samples with seed {self.config.eval_seed}")
+            print(f"Evaluation dataset limited to {self.config.eval_max_samples} random samples with seed {self.config.eval_seed}")
         
         self.training_data = self._preprocess_training_data(training_dataset)
         self.eval_data = self._preprocess_eval_data(eval_dataset)
