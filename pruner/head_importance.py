@@ -68,11 +68,18 @@ class HeadImportanceMeasurer:
         
         num_layers = self._get_num_layers()
         num_heads = self._get_num_heads()
+        print(f"   Model structure: {num_layers} layers, {num_heads} heads per layer")
         
         safe_activations = {}
         unsafe_activations = {}
         safe_counts = {}
         unsafe_counts = {}
+        
+        # Track response classification counts
+        total_prompts = 0
+        safe_responses = 0
+        unsafe_responses = 0
+        skipped_prompts = 0
         
         with torch.no_grad():
             for batch_idx, batch in enumerate(tqdm(train_dataloader, desc="Measuring head importance")):
@@ -80,6 +87,7 @@ class HeadImportanceMeasurer:
                 
                 # Process each prompt individually
                 for prompt in prompts:
+                    total_prompts += 1
                     try:
                         # Prepare input for generation
                         chat = [{"role": "user", "content": prompt}]
@@ -107,7 +115,7 @@ class HeadImportanceMeasurer:
                         gen_output = self.model.generate(
                             input_ids=input_ids,
                             attention_mask=attention_mask,
-                            max_new_tokens=10,
+                            max_new_tokens=50,  # Increased to allow full Llama Guard response
                             do_sample=False,
                             pad_token_id=self.tokenizer.pad_token_id
                         )
@@ -124,6 +132,16 @@ class HeadImportanceMeasurer:
                         ).strip()
                         
                         cleaned_response = dataset_handler.clean_model_response(response)
+                        
+                        # Debug: Log first few responses to see what model is actually outputting
+                        if total_prompts <= 5:
+                            print(f"     Prompt {total_prompts}: Raw response: '{response}' -> Cleaned: '{cleaned_response}'")
+                        
+                        # Count response classifications
+                        if cleaned_response == "safe":
+                            safe_responses += 1
+                        elif cleaned_response == "unsafe":
+                            unsafe_responses += 1
                         
                         # Process attention weights from model output
                         if hasattr(outputs, 'attentions') and outputs.attentions is not None:
@@ -153,11 +171,27 @@ class HeadImportanceMeasurer:
                         
                     except Exception as e:
                         # Skip problematic prompts silently
+                        skipped_prompts += 1
                         continue
+        
+        # Log classification summary
+        print(f"   Response classification summary:")
+        print(f"     Total prompts processed: {total_prompts}")
+        print(f"     Safe responses: {safe_responses}")
+        print(f"     Unsafe responses: {unsafe_responses}")
+        print(f"     Skipped prompts: {skipped_prompts}")
+        
+        if unsafe_responses == 0:
+            print(f"   ⚠️  WARNING: No 'unsafe' responses detected! All responses classified as 'safe'.")
+            print(f"      This will result in zero importance values since differential analysis requires both classes.")
         
         max_heads = max(len(safe_activations[layer_idx]) for layer_idx in safe_activations.keys()) if safe_activations else 16
         
         importance_matrix = np.zeros((num_layers, max_heads))
+        
+        # Track layers with non-zero importance
+        layers_with_importance = 0
+        max_layer_importance = 0.0
         
         for layer_idx in range(num_layers):
             if layer_idx in safe_activations:
@@ -172,9 +206,18 @@ class HeadImportanceMeasurer:
                                      out=np.zeros_like(unsafe_layer), where=unsafe_count_layer!=0)
                 
                 layer_importance = np.abs(safe_avg - unsafe_avg)
+                layer_max_importance = np.max(layer_importance)
+                
+                if layer_max_importance > 0:
+                    layers_with_importance += 1
+                    max_layer_importance = max(max_layer_importance, layer_max_importance)
                 
                 num_heads_layer = len(layer_importance)
                 importance_matrix[layer_idx, :num_heads_layer] = layer_importance
+        
+        print(f"   Importance calculation summary:")
+        print(f"     Layers with non-zero importance: {layers_with_importance}/{num_layers}")
+        print(f"     Maximum layer importance: {max_layer_importance:.6f}")
         
         importance_matrix = self._normalize_importance_matrix(importance_matrix)
         

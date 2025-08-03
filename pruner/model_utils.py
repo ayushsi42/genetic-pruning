@@ -113,7 +113,7 @@ class ModelUtils:
                 outputs = self.model.generate(
                     input_ids=input_ids,
                     attention_mask=attention_mask,
-                    max_new_tokens=10,
+                    max_new_tokens=50,  # Increased to allow full Llama Guard response
                     do_sample=False,
                     pad_token_id=self.tokenizer.pad_token_id
                 )
