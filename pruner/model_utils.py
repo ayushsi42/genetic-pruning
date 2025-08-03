@@ -226,7 +226,7 @@ class ModelUtils:
         
         # Create model utils instance
         if config is None:
-            from .config import Config
+            from . import Config
             config = Config()
             config.model_name = model_path  # Use local path instead of HF model
         

@@ -6,7 +6,5 @@ to filter unsafe inputs and outputs from other AI models.
 """
 
 from .guardrail_system import GuardrailSystem
-from .safety_responses import SafetyResponses
-
 __version__ = "1.0.0"
-__all__ = ["GuardrailSystem", "SafetyResponses"]
+__all__ = ["GuardrailSystem"]
